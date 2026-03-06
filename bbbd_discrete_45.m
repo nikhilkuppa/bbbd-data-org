@@ -1,5 +1,4 @@
 experiment_nos = {4, 5};
-% discrete_items = {'pupil','eye','blinks', 'saccades', 'fixations', 'hr', 'respiration'};
 discrete_items = {'respiration', 'hr'};
 
 directory = sprintf('D:\\Users\\Neuro\\City College Dropbox\\NIKHIL KUPPA\\dataset_multimodal_video\\data\\experiment_%d\\metadata', 4);
@@ -18,15 +17,15 @@ for exp_no = 1:length(experiment_nos)
         T_files = T_files_full(~doIntervention, :);
         sub_skip = '';
     else
-        T_files = T_files_full(doIntervention, :)
+        T_files = T_files_full(doIntervention, :);
         sub_skip = 9;
     end
-    
+
     Nparticipant = size(T_files,1);
     for item_no = 1:length(discrete_items)
         discrete_item = discrete_items{item_no}
         T_discretes = cell(Nparticipant,1);
-        
+
         for iParticipant = 1:Nparticipant
             if iParticipant == sub_skip
                 continue
@@ -37,66 +36,64 @@ for exp_no = 1:length(experiment_nos)
                 for iView = 1:2
 
                     if (strcmp(discrete_item, 'pupil') || strcmp(discrete_item, 'eye'))
-                        if ~isempty(metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim) 
+                        if ~isempty(metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim)
                             Ndiscrete = size(metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim,1);
-    
+
                             subject_no = repmat(sprintf("sub-%02d", iParticipant), Ndiscrete,1);
                             stim_no = repmat(metadata.segments(iStim,iView).stim_no,Ndiscrete,1);
                             session_no = repmat(iView,Ndiscrete,1);
 
-                            time_start = metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim(:,1);    
-                            time_end = metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim(:,2);  
+                            time_start = metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim(:,1);
+                            time_end = metadata.segments(iStim,iView).(discrete_item).interpolated.timestamps_rel_stim(:,2);
                             T_discrete{iStim,iView} = table(subject_no,session_no,stim_no,time_start,time_end);
                         else
                             continue
                         end
 
-                    elseif (strcmp(discrete_item, 'hr') || strcmp(discrete_item, 'respiration')) 
-                        if ~isempty(metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim) 
+                    elseif (strcmp(discrete_item, 'hr') || strcmp(discrete_item, 'respiration'))
+                        if ~isempty(metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim)
                             Ndiscrete = size(metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim,1);
-    
+
                             subject_no = repmat(sprintf("sub-%02d", iParticipant), Ndiscrete,1);
                             stim_no = repmat(metadata.segments(iStim,iView).stim_no,Ndiscrete,1);
                             session_no = repmat(iView,Ndiscrete,1);
-                 
-                            time_peak = metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim(:,1);            
+
+                            time_peak = metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim(:,1);
                             T_discrete{iStim,iView} = table(subject_no,session_no,stim_no,time_peak);
                         else
                             continue
                         end
-                    
-                    elseif ~isempty(metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim) 
+
+                    elseif ~isempty(metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim)
                         Ndiscrete = size(metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim,1);
 
                         subject_no = repmat(sprintf("sub-%02d", iParticipant), Ndiscrete,1);
                         stim_no = repmat(metadata.segments(iStim,iView).stim_no,Ndiscrete,1);
                         session_no = repmat(iView,Ndiscrete,1);
-             
+
                         time_start = metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim(:,1);
                         time_end = metadata.segments(iStim,iView).(discrete_item).timestamps_rel_stim(:,2);
-            
+
                         T_discrete{iStim,iView} = table(subject_no,session_no,stim_no,time_start,time_end);
                     end
                 end
             end
             T_discretes{iParticipant} = cat(1,T_discrete{:});
         end
-        
+
         timestamps = cat(1,T_discretes{:});
 
         if strcmp(discrete_item, 'hr')
-            discrete_item = 'rpeaks'
+            discrete_item = 'rpeaks';
         elseif strcmp(discrete_item, 'respiration')
-            discrete_item = 'breathpeaks'
+            discrete_item = 'breathpeaks';
         elseif strcmp(discrete_item, 'pupil')
-            discrete_item = 'interpolated_pupil'
+            discrete_item = 'interpolated_pupil';
         elseif strcmp(discrete_item, 'eye')
-            discrete_item = 'interpolated_gaze'
+            discrete_item = 'interpolated_gaze';
         end
-        
-        % op_dir = sprintf("C:\\Users\\Nikhil\\research\\bbbd\\BBBD_bids\\matrix_data_new\\%s\\experiment%d", 'processed', experiment_no)
-        
-        op_dir = sprintf("D:\\Users\\Neuro\\City College Dropbox\\NIKHIL KUPPA\\dataset_multimodal_video\\BBBD\\matrix_data\\%s\\experiment%d", 'processed', experiment_no)
+
+        op_dir = sprintf("D:\\Users\\Neuro\\City College Dropbox\\NIKHIL KUPPA\\dataset_multimodal_video\\BBBD\\matrix_data\\%s\\experiment%d", 'processed', experiment_no);
         if ~exist(op_dir, 'dir')
             mkdir(op_dir);
         end
