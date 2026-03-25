@@ -1,93 +1,128 @@
-% Only for Experiments 1, 2, 3
-% Compute discrete processed signals (rpeaks, saccades, blinks, fixations)
+run('config.m');
 
+% Only for Experiments 4, 5
+% Compute discrete processed signals (rpeaks, breaths, saccades, blinks, fixations)
+
+doDerivatives = true;
 eye_discrete_list = ["blinks", "saccades", "fixations"];
 ecg_discrete_list = 'rpeak_timestamps';
-
-processed_signals = true;
-doDerivatives = true;
+resp_discrete_list = 'breath_peak_timestamps';
 sampling_frequency = 128;
-outputFolderName = 'bbbd';
+exp_nos = [4, 5];
+metadata_full = load(fullfile('config', 'int_metadata.mat'));
+metadata_full = metadata_full.metadata_full;
+doIntervention = load(fullfile('config', 'doIntervention_indexing.mat'));
+doIntervention = doIntervention.doIntervention;
 
-exp_nos = [1,2,3];
-for i=1:length(exp_nos)
-    experiment_no = exp_nos(i)
-    if experiment_no == 1
-        input_dirs = {'eye'};
-        process_input_dirs = {'eye'};
-    else
-        input_dirs = {'ecg', 'eye'};
-        process_input_dirs = {'ecg', 'eye'};
+for exp_no = 1:length(exp_nos)
+    experiment_no = exp_nos(exp_no)
+
+    input_dirs = {'ecg', 'respiration', 'eye'};
+
+    if experiment_no == 4
+        intervention = 0;
+    elseif experiment_no == 5
+        intervention = 1;
     end
 
-    base_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\raw', experiment_no);
-    base_processed_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\processed', experiment_no);
-    par_id_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\metadata', experiment_no);
+    sampling_frequency = 128;
+
+    base_exp_no = 4;
+    base_dir = fullfile(data_dir, sprintf('experiment_%d', base_exp_no), 'processed');
+    par_id_dir = fullfile(data_dir, sprintf('experiment_%d', base_exp_no), 'metadata');
 
     listfiles = dir(fullfile(base_dir, '*mat'));
     listfiles = {listfiles.name};
 
-    try
-        listfiles_processed = dir(fullfile(base_processed_dir, '*mat'));
-        listfiles_processed = {listfiles_processed.name};
-    catch
-        listfiles_unprocessed = dir(fullfile(base_dir, '*mat'));
-        listfiles_processed = {listfiles_unprocessed.name};
+    exp_output_dir = fullfile(output_dir, sprintf('experiment%d', experiment_no));
+    make_dir(exp_output_dir);
+
+    fprintf('Loading metadata\n')
+
+    if experiment_no == 4
+        metadata_exp = metadata_full(~doIntervention);
+    elseif experiment_no == 5
+        metadata_exp = metadata_full(doIntervention);
     end
 
-    output_dir = fullfile('C:\Users\Neuro\research\bbbd_output\', outputFolderName, sprintf('experiment%d',experiment_no));
-    make_dir(output_dir);
+    par_ids = cat(1, metadata_exp.participant_no);
 
-    par_meta_files = dir(fullfile(par_id_dir, '*.mat'));
-    par_ids = get_participant_ids(par_meta_files);
+    demodata = load(fullfile('config', sprintf('experiment%d_demographic.mat', experiment_no)));
+    ages_char = {demodata.demographicData.Age};
+    ages = cellfun(@str2double, ages_char);
 
-    for j = 1:length(input_dirs)
-        modality = input_dirs{j}
+    for i = 1:length(input_dirs)
+        modality = input_dirs{i}
 
-        if strcmp(modality, 'ecg')
+        if strcmp(modality, 'ecg') || strcmp(modality, 'eog') || strcmp(modality, 'respiration')
             processed_subdir = 'beh';
-        elseif strcmp(modality, 'eye') || strcmp(modality, 'interpolated_eye') || strcmp(modality, 'interpolated_pupil')
+        elseif strcmp(modality, 'eye') || strcmp(modality, 'pupil') || strcmp(modality, 'head')
             processed_subdir = 'eyetrack';
         end
 
-        if any(strcmp(process_input_dirs, modality))
-            filename_processed = listfiles_processed(contains(listfiles_processed, strcat('data_', modality)));
-            modality_data_processed = load(fullfile(base_processed_dir, filename_processed{1}), strcat('data_', modality));
-            field_names = fieldnames(modality_data_processed);
-            total_data_processed = modality_data_processed.(field_names{1});
-            fprintf('Total processed data loaded....');
-            n_sessions = size(total_data_processed, 1);
-            n_stimuli = size(total_data_processed, 2);
+        filename = listfiles(contains(listfiles, strcat('data_', modality)));
+
+        modality_data = load(fullfile(base_dir, filename{1}));
+
+        field_names = fieldnames(modality_data);
+        total_data = modality_data.(field_names{1});
+
+        if intervention == 1
+            intervention_data = total_data{1,1}; % YES INTERVENTION
+        else
+            intervention_data = total_data{2,1}; % NO INTERVENTION
         end
+
+        clear modality_data
+
+        fprintf('Total data loaded....');
+        n_sessions = size(intervention_data, 1);
+        n_stimuli = size(intervention_data, 2);
 
         for session_idx = 1:n_sessions
             for stimulus_idx = 1:n_stimuli
-                current_data = total_data_processed{session_idx, stimulus_idx};
-                [~, ~, n_subs] = size(current_data);
+
+                if intervention == 0 && session_idx == 1
+                    current_data = intervention_data{1,stimulus_idx};
+                    [~, ~, n_subs] = size(current_data);
+                else
+                    current_data = intervention_data{2,stimulus_idx};
+                    [~, ~, n_subs] = size(current_data);
+                end
 
                 for subj_idx = 1:n_subs
+                    if ages(subj_idx) < 18
+                        fprintf('\nSkipping subject %d for being under age', subj_idx);
+                        continue
+                    end
 
-                    stim_id = stimulus_idx;
+                    if intervention == 0 && session_idx == 1
+                        stim_id = stimulus_idx + 3; % stimuli 4, 5, 6 in block 1 for no-intervention data
+                    else
+                        stim_id = stimulus_idx;
+                    end
+
                     view_id = session_idx;
                     par_id_num = par_ids(subj_idx);
 
-                    bids_sub = sprintf('sub-%02d', par_id_num);
                     bids_ses = sprintf('ses-%02d', view_id);
                     bids_task = sprintf('task-stim%02d', stim_id);
+                    bids_sub = sprintf('sub-%02d', subj_idx);
 
-                    fprintf('\nSession %d, Subject %d, Stimulus %d', session_idx, par_id_num, stimulus_idx);
+                    fprintf('\nSession %d, Subject %d, Stimulus %d', session_idx, subj_idx, stimulus_idx);
 
                     if doDerivatives == true
                         fprintf('\nProcessing BIDS Derivatives...');
-                        derivatives_dir = fullfile(output_dir, 'derivatives', bids_sub, bids_ses, processed_subdir);
-                        make_dir(derivatives_dir);
-                        metadata = load(fullfile(par_id_dir, sprintf('metadata_participant_%02d.mat', par_id_num)));
+                        derivatives_dir = fullfile(exp_output_dir, 'derivatives', bids_sub, bids_ses, processed_subdir);
+                        make_dir(derivatives_dir)
 
-                        if strcmp(modality, 'eye')
-                            extract_discrete_eyederivatives(eye_discrete_list, metadata.metadata, derivatives_dir, bids_sub, bids_ses, bids_task, stimulus_idx, session_idx);
-                            write_eyetracking_interpolation_bids(metadata.metadata, derivatives_dir, bids_sub, bids_ses, bids_task, modality, stimulus_idx, session_idx);
+                        if strcmp(modality, 'respiration')
+                            extract_discrete_respderivatives(resp_discrete_list, metadata_exp(subj_idx), exp_output_dir, derivatives_dir, bids_sub, bids_ses, bids_task, stimulus_idx, session_idx);
                         elseif strcmp(modality, 'ecg')
-                            extract_discrete_ecgderivatives(ecg_discrete_list, metadata.metadata, derivatives_dir, bids_sub, bids_ses, bids_task, stimulus_idx, session_idx);
+                            extract_discrete_ecgderivatives(ecg_discrete_list, metadata_exp(subj_idx), derivatives_dir, bids_sub, bids_ses, bids_task, stimulus_idx, session_idx);
+                        elseif strcmp(modality, 'eye')
+                            extract_discrete_eyederivatives(eye_discrete_list, metadata_exp(subj_idx), derivatives_dir, bids_sub, bids_ses, bids_task, stimulus_idx, session_idx);
+                            write_eyetracking_interpolation_bids(metadata_exp(subj_idx), derivatives_dir, bids_sub, bids_ses, bids_task, modality, stimulus_idx, session_idx)
                         end
                     end
                 end
@@ -98,16 +133,23 @@ end
 
 %% DERIVED DATA
 
-function extract_discrete_respderivatives(fieldName, metadata, derivatives_dir, bids_sub, bids_ses, bids_task, stim_idx, ses_idx)
+function extract_discrete_respderivatives(fieldName, metadata, exp_output_dir, derivatives_dir, bids_sub, bids_ses, bids_task, stim_idx, ses_idx)
     derived_eye.(fieldName).timestamp = metadata.segments(stim_idx, ses_idx).respiration.timestamps_rel_stim(:,1);
 
-    fileName = sprintf('%s_%s_%s_desc-%s.tsv', bids_sub, bids_ses, bids_task, fieldName);
-    filePath = fullfile(derivatives_dir, fileName);
-    table_eye = struct2table(derived_eye.(fieldName));
-    writetable(table_eye, filePath, 'FileType', 'text', 'Delimiter', '\t');
-    gzip(filePath);
-    disp(['Saved ', filePath])
-    delete(filePath);
+    raw_filename = sprintf('%s_%s_%s_recording-%s_physio.tsv.gz', bids_sub, bids_ses, bids_task, 'respiration');
+    bids_dir = fullfile(exp_output_dir, bids_sub, bids_ses, 'beh');
+
+    if isfile(fullfile(bids_dir, raw_filename))
+        fileName = sprintf('%s_%s_%s_desc-%s.tsv', bids_sub, bids_ses, bids_task, fieldName);
+        filePath = fullfile(derivatives_dir, fileName);
+        table_eye = struct2table(derived_eye.(fieldName));
+        writetable(table_eye, filePath, 'FileType', 'text', 'Delimiter', '\t');
+        gzip(filePath);
+        disp(['Saved ', filePath])
+        delete(filePath);
+    else
+        fprintf('No raw file %s exists', fullfile(bids_dir, raw_filename))
+    end
 end
 
 function make_dir(bids_dir)
@@ -157,8 +199,7 @@ function extract_discrete_eyederivatives(discrete_list, metadata, derivatives_di
 end
 
 function extract_discrete_ecgderivatives(fieldName, metadata, derivatives_dir, bids_sub, bids_ses, bids_task, stim_idx, ses_idx)
-    raw_filename = sprintf('%s_%s_%s_desc-%s.tsv.gz', bids_sub, bids_ses, bids_task, 'heartrate');
-
+    raw_filename = sprintf('%s_%s_%s_desc-%s.tsv.gz', bids_sub, bids_ses, bids_task, 'filteredECG');
     if isfile(fullfile(derivatives_dir, raw_filename))
 
         if ~isempty(metadata.segments(stim_idx, ses_idx).hr.no_heart_beats) && metadata.segments(stim_idx, ses_idx).hr.no_heart_beats ~= 0
@@ -181,18 +222,9 @@ function extract_discrete_ecgderivatives(fieldName, metadata, derivatives_dir, b
                 delete(filePath)
             end
         end
+
     else
         fprintf('No raw file %s exists', fullfile(derivatives_dir, raw_filename))
-    end
-end
-
-function par_ids = get_participant_ids(par_meta_files)
-    par_ids = zeros(1, length(par_meta_files));
-    for i = 1:length(par_meta_files)
-        name_parts = regexp(par_meta_files(i).name, 'metadata_participant_(\d+)', 'tokens');
-        if ~isempty(name_parts)
-            par_ids(i) = str2double(name_parts{1}{1});
-        end
     end
 end
 

@@ -1,3 +1,5 @@
+run('config.m');
+
 experiment_nos = {1, 2, 3};
 
 for expno = 1:length(experiment_nos)
@@ -6,7 +8,7 @@ for expno = 1:length(experiment_nos)
     for n = 1:length(datatypes)
         datatype = datatypes{n}
 
-        data_path = sprintf('D:\\Users\\Neuro\\City College Dropbox\\NIKHIL KUPPA\\dataset_multimodal_video\\data\\experiment_%d\\%s', experiment_no, datatype);
+        data_path = fullfile(data_dir, sprintf('experiment_%d', experiment_no), datatype);
 
         listfiles = dir(fullfile(data_path, '*mat'));
         listfiles = {listfiles.name};
@@ -30,19 +32,19 @@ for expno = 1:length(experiment_nos)
                 data = process_processed_struct(data_matrix, modality);
 
                 if strcmp(modality, 'ecg') || strcmp(modality, 'eye') || strcmp(modality, 'respiration')
-                    process_rate_struct(data_matrix, modality, experiment_no, datatype);
+                    process_rate_struct(data_matrix, modality, experiment_no, datatype, output_dir);
                 end
             end
 
-            op_dir = sprintf("D:\\Users\\Neuro\\City College Dropbox\\NIKHIL KUPPA\\dataset_multimodal_video\\BBBD\\matrix_data\\%s\\experiment%d", datatype, experiment_no);
+            op_dir = fullfile(output_dir, 'matrix_data', datatype, sprintf('experiment%d', experiment_no));
             if ~exist(op_dir, 'dir')
                 mkdir(op_dir);
             end
 
             if strcmp(modality, 'eye')
-                filename_new = sprintf("%s\\%s_experiment%d_%s.mat", op_dir, datatype, experiment_no, 'gaze_visualangle');
+                filename_new = fullfile(op_dir, sprintf('%s_experiment%d_%s.mat', datatype, experiment_no, 'gaze_visualangle'));
             else
-                filename_new = sprintf("%s\\%s_experiment%d_%s.mat", op_dir, datatype, experiment_no, modality);
+                filename_new = fullfile(op_dir, sprintf('%s_experiment%d_%s.mat', datatype, experiment_no, modality));
             end
 
             save(filename_new, 'data', '-v7.3');
@@ -54,7 +56,7 @@ for expno = 1:length(experiment_nos)
 end
 
 %%
-function process_rate_struct(dataStruct, modality, experiment_no, datatype)
+function process_rate_struct(dataStruct, modality, experiment_no, datatype, output_dir)
     function cols = get_columns_to_keep(modality, totalColumns)
         switch modality
             case 'eye'
@@ -101,7 +103,7 @@ function process_rate_struct(dataStruct, modality, experiment_no, datatype)
             error('Unknown modality: %s', modality);
     end
 
-    op_dir = sprintf("D:\\Users\\Neuro\\City College Dropbox\\NIKHIL KUPPA\\dataset_multimodal_video\\BBBD\\matrix_data\\%s\\experiment%d", datatype, experiment_no);
+    op_dir = fullfile(output_dir, 'matrix_data', datatype, sprintf('experiment%d', experiment_no));
     if ~exist(op_dir, 'dir')
         mkdir(op_dir);
     end
@@ -113,7 +115,7 @@ function process_rate_struct(dataStruct, modality, experiment_no, datatype)
         x(:, get_ratecolumns_to_keep(rate_type, size(x, 2)), :), ...
         rate_data, 'UniformOutput', false);
 
-        filename_new = sprintf('%s\\%s_experiment%d_%s.mat', op_dir, datatype, experiment_no, rate_type);
+        filename_new = fullfile(op_dir, sprintf('%s_experiment%d_%s.mat', datatype, experiment_no, rate_type));
         save(filename_new, 'data', '-v7.3');
 
         fileInfo = dir(filename_new);

@@ -1,27 +1,28 @@
+run('config.m');
+
 exp_nos = [4, 5];
-outputFolderName = 'bbbd';
 
 fprintf('Loading metadata\n')
-metadata = load('C:\Users\Neuro\research\mevd\mat_mevd\intervention_mat_files\int_metadata.mat');
+metadata = load(fullfile('config', 'int_metadata.mat'));
 metadata = metadata.metadata_full;
-doIntervention = load('C:\Users\Neuro\research\mevd\mat_mevd\intervention_mat_files\doIntervention_indexing.mat');
+doIntervention = load(fullfile('config', 'doIntervention_indexing.mat'));
 doIntervention = doIntervention.doIntervention;
 modality = 'eeg';
 
-addpath('C:\Users\Neuro\research\mevd\mat_mevd\eeglab2024.2\')
+addpath(eeglab_path)
 eeglab nogui;
-chan = load("C:\Users\Neuro\research\mevd\eeg_loc\location_file\BioSemi64.mat");
+chan = load(fullfile('config', 'BioSemi64.mat'));
 bids_raw = true;
 
 sampling_frequency = 128;
 
-base_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\raw', 4);
+base_dir = fullfile(data_dir, sprintf('experiment_%d', 4), 'raw');
 
 listfiles = dir(fullfile(base_dir, '*mat'));
 listfiles = {listfiles.name};
 
 fprintf('Loading Total Data\n')
-modality_data = load("C:\Users\Neuro\Dropbox\dataset_multimodal_video\data\experiment_4\raw\data_eeg__arej_0_bcrej_0_eogreg_0_bc_ass_sync_audio_frames_RPCA_0_fs=128.mat");
+modality_data = load(fullfile(data_dir, 'experiment_4', 'raw', 'data_eeg.mat'));
 field_names = fieldnames(modality_data);
 total_data = modality_data.(field_names{1});
 clear modality_data
@@ -36,8 +37,8 @@ for exp_no = 1:length(exp_nos)
         intervention = 1;
     end
 
-    output_dir = fullfile('C:\Users\Neuro\research\bbbd_output\', outputFolderName, sprintf('experiment%d',experiment_no));
-    make_dir(output_dir);
+    exp_output_dir = fullfile(output_dir, sprintf('experiment%d', experiment_no));
+    make_dir(exp_output_dir);
 
     if experiment_no == 4
         metadata_exp = metadata(~doIntervention);
@@ -47,7 +48,7 @@ for exp_no = 1:length(exp_nos)
 
     par_ids = cat(1, metadata_exp.participant_no);
 
-    demodata = load(sprintf('C:\\Users\\Neuro\\research\\mevd\\mat_mevd\\intervention_mat_files\\experiment%d_demographic.mat', experiment_no));
+    demodata = load(fullfile('config', sprintf('experiment%d_demographic.mat', experiment_no)));
     ages_char = {demodata.demographicData.Age};
     ages = cellfun(@str2double, ages_char);
 
@@ -105,7 +106,7 @@ for exp_no = 1:length(exp_nos)
                         continue;
                     end
 
-                    bids_dir = fullfile(output_dir, bids_sub, bids_ses, 'eeg');
+                    bids_dir = fullfile(exp_output_dir, bids_sub, bids_ses, 'eeg');
                     make_dir(bids_dir)
                     write_eeg_bdf(sampling_frequency, data, chan, bids_sub, bids_ses, bids_task, bids_dir, modality, false)
                     write_eeg_json(size(data,2), bids_sub, bids_ses, bids_task, 'eeg', bids_dir, stim_id, view_id, experiment_no)

@@ -1,9 +1,10 @@
-exp_nos = [4, 5];
-outputFolderName = 'bbbd';
+run('config.m');
 
-metadata = load('C:\Users\Neuro\research\mevd\mat_mevd\intervention_mat_files\int_metadata.mat');
+exp_nos = [4, 5];
+
+metadata = load(fullfile('config', 'int_metadata.mat'));
 metadata = metadata.metadata_full;
-doIntervention = load('C:\Users\Neuro\research\mevd\mat_mevd\intervention_mat_files\doIntervention_indexing.mat');
+doIntervention = load(fullfile('config', 'doIntervention_indexing.mat'));
 doIntervention = doIntervention.doIntervention;
 
 for exp_no = 1:length(exp_nos)
@@ -21,16 +22,16 @@ for exp_no = 1:length(exp_nos)
     sampling_frequency = 128;
 
     base_exp_no = 4;
-    base_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\raw', base_exp_no);
+    base_dir = fullfile(data_dir, sprintf('experiment_%d', base_exp_no), 'raw');
 
     listfiles = dir(fullfile(base_dir, '*mat'));
     listfiles = {listfiles.name};
 
-    output_dir = fullfile('C:\Users\Neuro\research\bbbd_output\', outputFolderName, sprintf('experiment%d',experiment_no));
-    make_dir(output_dir);
+    exp_output_dir = fullfile(output_dir, sprintf('experiment%d', experiment_no));
+    make_dir(exp_output_dir);
 
-    srcdir = fullfile('C:\Users\Neuro\research\mevd\MEVD_Final_v2\', sprintf('experiment%d',experiment_no));
-    move_files_and_phenotype(srcdir, output_dir);
+    srcdir = fullfile(bbbd_source_dir, sprintf('experiment%d', experiment_no));
+    move_files_and_phenotype(srcdir, exp_output_dir);
 
     fprintf('Loading metadata\n')
 
@@ -42,7 +43,7 @@ for exp_no = 1:length(exp_nos)
 
     par_ids = cat(1, metadata_exp.participant_no);
 
-    demodata = load(sprintf('C:\\Users\\Neuro\\research\\mevd\\mat_mevd\\intervention_mat_files\\experiment%d_demographic.mat', experiment_no));
+    demodata = load(fullfile('config', sprintf('experiment%d_demographic.mat', experiment_no)));
     ages_char = {demodata.demographicData.Age};
     ages = cellfun(@str2double, ages_char);
 
@@ -56,11 +57,7 @@ for exp_no = 1:length(exp_nos)
         end
 
         filename = listfiles(contains(listfiles, strcat('data_', modality)));
-        if strcmp(modality, 'eeg')
-            modality_data = load('C:\Users\Neuro\research\mevd\eeg_intervention\raw\data_eeg__arej_0_bcrej_0_eogreg_0_bc_ass_sync_audio_frames_RPCA_0_fs=128.mat');
-        else
-            modality_data = load(fullfile(base_dir, filename{1}));
-        end
+        modality_data = load(fullfile(base_dir, filename{1}));
         field_names = fieldnames(modality_data);
         total_data = modality_data.(field_names{1});
 
@@ -121,7 +118,7 @@ for exp_no = 1:length(exp_nos)
                             continue;
                         end
 
-                        bids_dir = fullfile(output_dir, bids_sub, bids_ses, processed_subdir);
+                        bids_dir = fullfile(exp_output_dir, bids_sub, bids_ses, processed_subdir);
                         make_dir(bids_dir)
                         if strcmp(processed_subdir, 'beh')
                             write_physio_bids(data, bids_dir, bids_sub, bids_ses, bids_task, modality)
@@ -268,8 +265,8 @@ function sidecar = generate_physio_json_metadata(modality, task_id, view_id, exp
         };
 
     elseif strcmp(modality, 'eog')
-        manufacturer = 'Biosemi';
-        manufacturersModelName = 'ActiveTwo';
+        manufacturer = 'BioSemi';
+        manufacturersModelName = 'Active Two';
         columns = {"ch1", "ch2", "ch3", "ch4", "ch5", "ch6"};
         units = {'uV'};
         description = {
@@ -391,16 +388,6 @@ end
 function make_dir(bids_dir)
     if ~exist(bids_dir, 'dir')
         mkdir(bids_dir);
-    end
-end
-
-function par_ids = get_participant_ids(par_meta_files)
-    par_ids = zeros(1, length(par_meta_files));
-    for i = 1:length(par_meta_files)
-        name_parts = regexp(par_meta_files(i).name, 'metadata_participant_(\d+)', 'tokens');
-        if ~isempty(name_parts)
-            par_ids(i) = str2double(name_parts{1}{1});
-        end
     end
 end
 

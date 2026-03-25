@@ -1,25 +1,26 @@
+run('config.m');
+
 bids_raw = true;
 sampling_frequency = 128;
 
-addpath('C:\Users\Neuro\research\mevd\mat_mevd\eeglab2024.2\')
+addpath(eeglab_path)
 eeglab nogui;
-chan = load("C:\Users\Neuro\research\mevd\eeg_loc\location_file\BioSemi64.mat");
+chan = load(fullfile('config', 'BioSemi64.mat'));
 input_dirs = {'eeg'};
 exp_nos = [1,2,3];
-outputFolderName = 'bbbd';
 
 for exp_idx = 1:length(exp_nos)
     experiment_no = exp_nos(exp_idx)
 
-    base_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\raw', experiment_no);
+    base_dir = fullfile(data_dir, sprintf('experiment_%d', experiment_no), 'raw');
 
     listfiles = dir(fullfile(base_dir, '*mat'));
     listfiles = {listfiles.name};
 
-    output_dir = fullfile('C:\Users\Neuro\research\bbbd_output\', outputFolderName, sprintf('experiment%d',experiment_no));
-    make_dir(output_dir);
+    exp_output_dir = fullfile(output_dir, sprintf('experiment%d', experiment_no));
+    make_dir(exp_output_dir);
 
-    par_id_dir = sprintf('C:\\Users\\Neuro\\Dropbox\\dataset_multimodal_video\\data\\experiment_%d\\metadata', experiment_no);
+    par_id_dir = fullfile(data_dir, sprintf('experiment_%d', experiment_no), 'metadata');
     par_meta_files = dir(fullfile(par_id_dir, '*.mat'));
     par_ids = get_participant_ids(par_meta_files);
 
@@ -69,7 +70,7 @@ for exp_idx = 1:length(exp_nos)
                             continue;
                         end
 
-                        bids_dir = fullfile(output_dir, bids_sub, bids_ses, 'eeg');
+                        bids_dir = fullfile(exp_output_dir, bids_sub, bids_ses, 'eeg');
                         make_dir(bids_dir)
                         write_eeg_bdf(sampling_frequency, data, chan, bids_sub, bids_ses, bids_task, bids_dir, modality, false)
                         write_eeg_json(size(data,2), bids_sub, bids_ses, bids_task, 'eeg', bids_dir, stim_id, view_id, experiment_no)
