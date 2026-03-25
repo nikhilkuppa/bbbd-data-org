@@ -24,6 +24,10 @@ for experiment_no = 1:3
     phenotype_dir = fullfile(exp_output, 'phenotype');
     make_dir(phenotype_dir);
 
+    %% Static per-experiment files
+    write_bidsignore(exp_output);
+    copy_readme(bbbd_source_dir, exp_output, experiment_no);
+
     %% dataset_description.json
     write_dataset_description(exp_output, experiment_no);
 
@@ -40,7 +44,8 @@ for experiment_no = 1:3
     if ~isempty(points_file)
         pts = load(fullfile(points_file(1).folder, points_file(1).name));
         par_nos = [demo.no];
-        if experiment_no == 1
+        if experiment_no == 1 || (experiment_no == 2 && isfield(pts, 'Npoints_stim_pre'))
+            % Exp1 and exp2 have separate domain (pre) and memory (post) scores
             write_scores_exp1(pts, par_nos, phenotype_dir);
         else
             write_scores_exp23(pts, par_nos, phenotype_dir);
@@ -100,6 +105,8 @@ for exp_no = [4, 5]
     phenotype_dir = fullfile(exp_output, 'phenotype');
     make_dir(phenotype_dir);
 
+    write_bidsignore(exp_output);
+    copy_readme(bbbd_source_dir, exp_output, exp_no);
     write_dataset_description(exp_output, exp_no);
     write_participants(demo, exp_output, tired_labels, true, false);
 
@@ -569,6 +576,22 @@ function write_digitspan(T, phenotype_dir)
     sidecar.score.Description = 'digit span forward score';
     sidecar.weighted_score.Description = 'weighted digit span score';
     write_json(fullfile(phenotype_dir, 'digit_span_scores.json'), sidecar);
+end
+
+function write_bidsignore(exp_output)
+    fid = fopen(fullfile(exp_output, '.bidsignore'), 'w');
+    fprintf(fid, 'sub-*/ses-*/eyetrack/\nphenotype/\n');
+    fclose(fid);
+end
+
+function copy_readme(bbbd_source_dir, exp_output, experiment_no)
+    src = fullfile(bbbd_source_dir, sprintf('experiment%d', experiment_no), 'README.md');
+    dst = fullfile(exp_output, 'README.md');
+    if isfile(src)
+        copyfile(src, dst);
+    else
+        fprintf('README.md not found at %s — skipping\n', src);
+    end
 end
 
 function write_json(filepath, s)
